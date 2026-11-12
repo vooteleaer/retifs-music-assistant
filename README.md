@@ -25,7 +25,7 @@ Music Assistant loads every folder in its `providers/` with a `manifest.json`: m
    - `provider/retifs` → `/app/venv/lib/python3.14/site-packages/music_assistant/providers/retifs` (read-only)
 4. In Music Assistant: Settings → Providers → Add → retifs: the socket (`/retifs/apps.sock`), the token, the library.
 
-Built and tested against Music Assistant 2.10.9.
+Built and tested against Music Assistant 2.10.9, with retifs 0.4.0 (retifsd's `--app-socket` came in 0.4.0). A release's `retifs-music-assistant-*.zip` is the `retifs` folder to mount (step 3).
 
 ## Develop
 
