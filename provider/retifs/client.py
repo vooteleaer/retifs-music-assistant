@@ -143,8 +143,8 @@ class Client:
     """retifs as an app sees it: a socket path and a token, connections made as needed."""
 
     def __init__(self, socket_path: str, token: str) -> None:
-        self.socket_path = socket_path
-        self.token = token
+        self.socket_path = socket_path.strip()
+        self.token = token.strip()
         self._conn: Connection | None = None
 
     async def _shared(self) -> Connection:

@@ -209,7 +209,7 @@ class RetifsProvider(MusicProvider):
     async def handle_async_init(self) -> None:
         socket = self.get_setup_value(CONF_SOCKET) or DEFAULT_SOCKET
         token = self.get_setup_value(CONF_TOKEN) or ""
-        self.library = self.get_setup_value(CONF_LIBRARY) or "music"
+        self.library = str(self.get_setup_value(CONF_LIBRARY) or "music").strip()
         self.client = Client(str(socket), str(token))
         try:
             await self.client.call({"op": "ns_info", "ns": self.library})

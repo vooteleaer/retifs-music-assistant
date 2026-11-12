@@ -30,7 +30,7 @@ async def run_setup(session: SetupSession) -> None:
     while True:
         entries = [replace(e, value=data.get(e.key, e.default_value)) for e in _ENTRIES]
         submitted = await session.form(entries, step_id="user", errors=errors, last_step=True)
-        data.update(submitted)
+        data.update({k: v.strip() if isinstance(v, str) else v for k, v in submitted.items()})
         client = Client(str(data["socket"]), str(data["token"]))
         try:
             await client.call({"op": "ns_info", "ns": data["library"]})
