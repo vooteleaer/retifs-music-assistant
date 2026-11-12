@@ -30,6 +30,7 @@ from music_assistant_models.media_items import (
     Album,
     Artist,
     AudioFormat,
+    BrowseFolder,
     ItemMapping,
     MediaItemImage,
     MediaItemMetadata,
@@ -72,6 +73,7 @@ PIECE_WAIT_MS = 60_000
 ARTWORK_EVERY = 30 * 60
 
 SUPPORTED_FEATURES = {
+    ProviderFeature.BROWSE,
     ProviderFeature.LIBRARY_ARTISTS,
     ProviderFeature.LIBRARY_ALBUMS,
     ProviderFeature.LIBRARY_TRACKS,
@@ -410,6 +412,36 @@ class RetifsProvider(MusicProvider):
         if MediaType.ARTIST in media_types:
             res.artists = [a for a in self._artists.values() if q in a.name.casefold()][:limit]
         return res
+
+    async def browse(self, path: str) -> list[Any]:
+        """The library as its folders, as in Explorer or the mount: `instance://Artist/Album (Year)`."""
+        await self._ready()
+        sub = path.split("://", 1)[1].strip("/") if "://" in path else ""
+        prefix = f"/{sub}/" if sub else "/"
+        folders: set[str] = set()
+        here: list[Record] = []
+        for rec in self._tracks.values():
+            p = rec.text("path") or ""
+            if not p.startswith(prefix):
+                continue
+            rest = p[len(prefix):]
+            if "/" in rest:
+                folders.add(rest.split("/", 1)[0])
+            else:
+                here.append(rec)
+        items: list[Any] = [
+            BrowseFolder(
+                item_id=f"{sub}/{name}".strip("/"),
+                provider=self.instance_id,
+                path=f"{self.instance_id}://{sub + '/' if sub else ''}{name}",
+                name=name,
+                is_playable=True,
+            )
+            for name in sorted(folders, key=str.casefold)
+        ]
+        tracks = [self._track(r) for r in here]
+        tracks.sort(key=lambda t: (t.disc_number, t.track_number, t.name.casefold()))
+        return items + tracks
 
     async def library_add(self, item: Any) -> bool:
         await self._set_favorite(item, True)
