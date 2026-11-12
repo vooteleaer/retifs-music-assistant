@@ -344,7 +344,7 @@ class RetifsProvider(MusicProvider):
             disc_number=tags["disc"] or 0,
             favorite=rec.attrs.get("favorite") is True,
             provider_mappings=self._mapping(rec.id, rec),
-            metadata=MediaItemMetadata(genres={genre} if genre else None, images=album.metadata.images if album else None),
+            metadata=MediaItemMetadata(genres={g.strip() for g in genre.split(";") if g.strip()} if genre else None, images=album.metadata.images if album else None),
         )
         return track
 
