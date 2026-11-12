@@ -1,0 +1,26 @@
+{
+  "config_entries": {
+    "socket": {
+      "label": "retifs app socket",
+      "description": "Path of retifsd's app socket inside this container (apps.sock in the retifs store, mounted in)."
+    },
+    "token": {
+      "label": "App token",
+      "description": "The token retifs gave this app: retifs app add music-assistant --ns LIBRARY --write"
+    },
+    "library": {
+      "label": "Library",
+      "description": "The retifs library with the music."
+    },
+    "save_artwork": {
+      "label": "Keep artwork in retifs",
+      "description": "Covers Music Assistant finds for albums without one are written into the library, so every device has them."
+    }
+  },
+  "manifest": {
+    "description": "Music from a retifs library: encrypted, kept on your own devices and nodes, played from wherever its pieces are."
+  },
+  "errors": {
+    "connect_failed": "Can't reach retifs: {0}"
+  }
+}

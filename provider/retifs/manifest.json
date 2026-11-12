@@ -1,0 +1,11 @@
+{
+  "type": "music",
+  "domain": "retifs",
+  "stage": "beta",
+  "name": "retifs",
+  "description": "Music from a retifs library: encrypted, kept on your own devices and nodes, played from wherever its pieces are.",
+  "codeowners": ["@vooteleaer"],
+  "requirements": [],
+  "documentation": "https://github.com/vooteleaer/retifs-music-assistant",
+  "multi_instance": true
+}

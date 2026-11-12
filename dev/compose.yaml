@@ -1,0 +1,33 @@
+# The provider's dev setup, shaped like the NAS one: Reticulum, retifsd and
+# Music Assistant 2.10.9 as three containers. retifsd shares only its second
+# app socket with Music Assistant (the `apps` volume), and the provider is
+# mounted into Music Assistant's providers.
+#
+#   dev/build.sh          binaries into dev/retifs/bin
+#   docker compose -f dev/compose.yaml up -d --build
+#   http://localhost:8095
+services:
+  rns:
+    build: rns
+  retifs:
+    build: retifs
+    network_mode: service:rns
+    depends_on: [rns]
+    environment:
+      EXTRACT_NS: music
+    volumes:
+      - store:/data
+      - apps:/apps
+      - .:/work:ro
+  music-assistant:
+    image: ghcr.io/music-assistant/server:2.10.9
+    ports:
+      - "8095:8095"
+    volumes:
+      - ma-data:/data
+      - apps:/retifs
+      - ../provider/retifs:/app/venv/lib/python3.14/site-packages/music_assistant/providers/retifs:ro
+volumes:
+  store:
+  apps:
+  ma-data:
