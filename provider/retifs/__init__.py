@@ -71,6 +71,13 @@ PIECE = 512 << 10
 PIECE_WAIT_MS = 60_000
 # How often the artwork Music Assistant found is copied into retifs.
 ARTWORK_EVERY = 30 * 60
+# While the library keeps changing (an import, the extractor describing
+# files), it's looked at no more often than this, in seconds: each look reads
+# every record, and each sync makes Music Assistant compare its whole library.
+SETTLE = 30
+# Music Assistant syncs once the library has been quiet for SETTLE seconds,
+# or after this long at the latest while it keeps changing.
+SYNC_AT_LATEST = 10 * 60
 
 SUPPORTED_FEATURES = {
     ProviderFeature.BROWSE,
@@ -201,6 +208,7 @@ class RetifsProvider(MusicProvider):
         self._album_tracks: dict[str, list[str]] = {}
         self._artist_albums: dict[str, list[str]] = {}
         self._digest = ""
+        self._seen = ""  # what Music Assistant was last given (_signature)
         self._loaded = asyncio.Event()
         self._tasks: list[asyncio.Task[None]] = []
 
@@ -232,29 +240,64 @@ class RetifsProvider(MusicProvider):
     # The library, kept current with a live query.
 
     async def _follow(self) -> None:
-        """Keeps the track list current: a live query answers whenever it changes."""
+        """Keeps the track list current: a live query answers whenever it changes.
+
+        Changes are gathered: the library is looked at again only SETTLE
+        seconds after a change, and Music Assistant syncs once it has been
+        quiet that long (or SYNC_AT_LATEST after the first unsynced change),
+        and only if something it shows changed.
+        """
         from .client import Client as _C
 
+        loop = asyncio.get_running_loop()
         watcher = _C(self.client.socket_path, self.client.token)
+        pending: float | None = None  # when a change not yet synced was seen
         try:
             while True:
                 try:
-                    digest, recs = await watcher.live_query(self.library, FILES, self._digest, 120_000)
+                    wait = SETTLE if pending is not None else 120
+                    digest, recs = await watcher.live_query(self.library, FILES, self._digest, wait * 1000)
                 except RetifsError as err:
                     self.logger.warning("retifs: %s; trying again in a minute", err)
                     await watcher.close()
                     await asyncio.sleep(60)
                     continue
-                if recs is not None and digest != self._digest:
+                changed = recs is not None and digest != self._digest
+                if changed:
                     first = not self._loaded.is_set()
                     self._index([r for r in recs if _is_audio(r)], [r for r in recs if _is_image(r)])
                     self._digest = digest
+                    signature = self._signature()
+                    if first:
+                        self._seen = signature
+                    elif signature != self._seen and pending is None:
+                        pending = loop.time()
                     self._loaded.set()
-                    self.logger.info("retifs: library %s has %d tracks, %d albums, %d artists", self.library, len(self._tracks), len(self._albums), len(self._artists))
-                    if not first:
-                        await self.mass.music.start_sync(providers=[self.instance_id])
+                    if first or signature != self._seen:
+                        self.logger.info("retifs: library %s has %d tracks, %d albums, %d artists", self.library, len(self._tracks), len(self._albums), len(self._artists))
+                if pending is not None and (not changed or loop.time() - pending >= SYNC_AT_LATEST):
+                    pending = None
+                    self._seen = self._signature()
+                    await self.mass.music.start_sync(providers=[self.instance_id])
+                if changed:
+                    await asyncio.sleep(SETTLE)
         finally:
             await watcher.close()
+
+    def _signature(self) -> str:
+        """A digest of what Music Assistant is shown: a change elsewhere (the
+        extractor's markers, thumbnails) needs no sync."""
+        h = hashlib.sha256()
+        for rid in sorted(self._tracks):
+            t = self._track(self._tracks[rid])
+            h.update(repr((rid, t.name, t.duration, [a.item_id for a in t.artists], t.album.item_id if t.album else None, t.track_number, t.disc_number, t.favorite, sorted(t.metadata.genres or []), _content_type(self._tracks[rid]))).encode())
+        for aid in sorted(self._albums):
+            a = self._albums[aid]
+            h.update(repr((aid, a.name, a.year, [x.item_id for x in a.artists], [i.path for i in a.metadata.images or []])).encode())
+        for aid in sorted(self._artists):
+            a = self._artists[aid]
+            h.update(repr((aid, a.name, [i.path for i in a.metadata.images or []])).encode())
+        return h.hexdigest()
 
     async def _ready(self) -> None:
         await asyncio.wait_for(self._loaded.wait(), timeout=300)

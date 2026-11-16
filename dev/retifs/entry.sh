@@ -14,7 +14,7 @@ echo "retifsd is up: $(retifs ping 2>&1 | head -1)"
 if [ -n "$EXTRACT_NS" ]; then
     T="$RETIFS_STORE/extract.token"
     if [ ! -s "$T" ]; then
-        for ns in $(echo "$EXTRACT_NS" | tr ',' ' '); do retifs ns info "$ns" >/dev/null 2>&1 || retifs ns address "$ns" >/dev/null; done
+        for ns in $(echo "$EXTRACT_NS" | tr ',' ' '); do retifs library info "$ns" >/dev/null 2>&1 || retifs library address "$ns" >/dev/null; done
         retifs app add extract --ns "$EXTRACT_NS" --write \
             --keys "mime,width,height,taken,camera,geo,duration,exif.*,audio.*,doc.*,block:*,@content,type,extracted" > "$T"
     fi
